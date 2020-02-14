@@ -1,0 +1,249 @@
+---
+title: "DATA608-Module1-inc5000"
+author: "Michael Y."
+date: "2/13/2020"
+output:
+  pdf_document:
+    md_extensions: +grid_tables
+    toc: yes
+    toc_depth: 3
+    keep_md: yes
+    keep_tex: yes
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    code_folding: show
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+    keep_md: yes
+    md_extensions: +grid_tables
+  html_notebook: default
+urlcolor: blue
+linkcolor: blue
+editor_options:
+  chunk_output_type: inline
+header-includes: 
+- \usepackage{graphicx}
+- \usepackage{float}
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+---
+
+<style>
+  .main-container {
+    max-width: 1200px !important;
+  }
+</style>
+
+---
+
+**Principles of Data Visualization and Introduction to ggplot2**
+
+I have provided you with data about the 5,000 fastest growing companies in the US, as compiled by Inc. magazine. lets read this in:
+
+```{r}
+path <- 
+"https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module1/Data/inc5000_data.csv"
+inc <- read.csv(path,header= TRUE)
+
+```
+
+\blandscape
+\newpage
+## Let's preview this data:
+
+```{r}
+options(digits=7,scipen=999,width=120)
+library(kableExtra)
+head(inc) %>% 
+  kable(format.args = list(big.mark = ",")) %>% 
+  kable_styling(c("bordered","striped"))
+
+```
+
+\newpage
+```{r}
+
+summary(inc)
+
+```
+
+\newpage
+Think a bit on what these summaries mean. Use the space below to add some more relevant non-visual exploratory information you think helps you understand this data:
+
+```{r}
+# Insert your code here, create more chunks as necessary
+library(tidyverse)
+
+# Add a column for revenue per employee at each company
+inc2 <- inc %>% 
+  mutate(RevenuePerEmployee = Revenue / Employees)
+
+### Group by Industry
+inc2 %>%
+  group_by(Industry) -> inc_byIndustry
+
+### Aggregate by Industry
+inc_byIndustry %>% summarise(
+  N         = n(),
+  AvgGrowth = mean(Growth_Rate,na.rm=T),
+  AvgRev    = mean(Revenue,na.rm=T),
+  TotalRev  = sum(Revenue,na.rm=T),
+  AvgEmpl   = mean(Employees,na.rm=T),
+  TotalEmpl = sum(Employees,na.rm=T),
+  AvgRevPerEmpl = mean(RevenuePerEmployee,na.rm=T),
+  MedRevPerEmpl = median(RevenuePerEmployee,na.rm=T)
+) -> Summary_byIndustry
+
+### Group by state
+inc2 %>%
+  group_by(State) -> inc_byState
+
+### Aggregate by state
+inc_byState %>% summarise(
+  Num_Companies         = n(),
+  AvgGrowth = mean(Growth_Rate,na.rm=T),
+  AvgRev    = mean(Revenue,na.rm=T),
+  TotalRev  = sum(Revenue,na.rm=T),
+  AvgEmpl  = mean(Employees,na.rm=T),
+  TotalEmpl = sum(Employees,na.rm=T),
+  AvgRevPerEmpl = mean(RevenuePerEmployee,na.rm=T),
+  MedRevPerEmpl = median(RevenuePerEmployee,na.rm=T)
+) -> Summary_byState
+```
+
+\newpage
+### Display summary by industry
+```{r display-by-industry}
+options(digits = 10)
+Summary_byIndustry %>% 
+  kable(format.args = list(big.mark = ","),digits=2) %>% 
+  kable_styling(c("bordered","striped"))
+```
+
+\newpage
+### Display summary by state
+```{r display-by-state}
+Summary_byState[1:26,] %>% 
+  kable(format.args = list(big.mark = ","),digits=2) %>% 
+  kable_styling(c("bordered","striped"))
+
+Summary_byState[27:52,] %>% 
+  kable(format.args = list(big.mark = ","),digits=2) %>% 
+  kable_styling(c("bordered","striped"))
+```
+\elandscape
+\newpage
+## Question 1
+
+Create a graph that shows the distribution of companies in the dataset by State (ie how many are in each state). There are a lot of States, so consider which axis you should use. This visualization is ultimately going to be consumed on a 'portrait' oriented screen (ie taller than wide), which should further guide your layout choices.
+
+```{r HW1-Q1, fig.width=7,fig.height=10}
+
+# Answer Question 1 here
+
+## Select just the State name and the number of companies
+tempgrid <- Summary_byState  %>% select (State,Num_Companies)
+
+## Reverse the grid so the results will display alphabetically (rather than backwards)
+tempgrid <- tempgrid[rev(tempgrid$State),]
+
+
+ggplot(tempgrid, aes(x=State, y=Num_Companies, fill=State))+
+geom_col(position=position_dodge(+.5),color="black", alpha=0.3) +
+geom_text( aes(label=Num_Companies), hjust=-0.4, vjust=+0.3, color="blue",
+   size=2) +
+ggtitle(label="INC 5000: Number of companies in each state",
+        subtitle="Formatted to display in portrait mode") +
+scale_x_discrete(limits = rev(levels(tempgrid$State)))+
+theme(axis.text.y = element_text(angle = 0, 
+                                 hjust = +0.1, vjust=+0.1, 
+                                 size=7,color="blue"))+  
+theme(plot.title = element_text(hjust = 0.5))+
+theme(plot.subtitle = element_text(hjust = 0.5))+
+theme(legend.position="none")+
+coord_flip()
+
+
+```
+
+\blandscape
+\newpage
+## Question 2
+
+Lets dig in on the state with the 3rd most companies in the data set. Imagine you work for the state and are interested in how many people are employed by companies in different industries. Create a plot that shows the average and/or median employment by industry for companies in this state (only use cases with full data, use R's `complete.cases()` function.) In addition to this, your graph should show how variable the ranges are, and you should deal with outliers.
+
+```{r HW1-Q2, fig.width=10,fig.height=7}
+
+# Answer Question 2 here
+
+### Determine which state has the 3rd most companies
+whichRow <- order(Summary_byState$Num_Companies,decreasing = T)[3]
+whichState <- as.character(Summary_byState$State)[whichRow]
+numCompanies  <- as.integer(Summary_byState[whichRow,"Num_Companies"])
+print(paste0("The state with the 3rd most companies is ", 
+             whichState, " with ", numCompanies, " companies."))
+
+### Subset the dataset with companies just from that state
+inc2 %>% filter(State==whichState) -> inc3
+### Filter out any cases with NA values  [ for this example, there are no such cases]
+inc3 <- inc3[complete.cases(inc3),]
+ggplot(inc3, aes(x = reorder(x=Industry,
+                             X=Employees,
+                             FUN = median), 
+                 y = Employees,
+                 fill=Industry)) + 
+  geom_boxplot(color="blue", alpha=0.3) +
+  scale_y_log10(label=scales::comma_format(accuracy = 1)) +
+  labs(x="Industry",
+       y="Boxplot: Number of Employees (log scale)",
+       title = "Number of employees in each industry",
+       subtitle = "NY-based companies in the INC 5000")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.subtitle = element_text(hjust = 0.5))+
+  theme(legend.position="none")+
+  coord_flip()
+
+
+```
+
+\newpage
+## Question 3
+
+Now imagine you work for an investor and want to see which industries generate the most revenue per employee. Create a chart that makes this information clear. Once again, the distribution per industry should be shown.
+
+```{r HW1-Q3,fig.width=10,fig.height=7}
+
+# Answer Question 3 here
+
+# Add a column for revenue per employee at each company
+inc4 <- inc %>% mutate(RevenuePerEmployee = Revenue / Employees)
+
+# There are 12 companies for which the number of employees is unknown.
+# Drop them.
+inc4 <- inc4[complete.cases(inc4),]
+
+
+
+ggplot(inc4, aes(x = reorder(x=Industry,
+                             X=RevenuePerEmployee,
+                             FUN = median), 
+                 y = RevenuePerEmployee,
+                 fill=Industry)) + 
+  geom_boxplot(color="blue", alpha=0.3) +
+  scale_y_log10(label=scales::dollar_format(accuracy = 1)) +
+  labs(x="Industry",
+       y="Boxplot: Revenue per Employee (log scale)",
+       title = "Revenue per employee, by industry",
+       subtitle = "All companies in the INC 5000")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(plot.subtitle = element_text(hjust = 0.5))+
+  theme(legend.position="none")+
+  coord_flip()
+
+```
+
+\elandscape
+
